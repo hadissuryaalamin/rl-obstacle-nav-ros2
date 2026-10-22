@@ -6,6 +6,8 @@ A ROS 2 simulation package demonstrating automated mobile robot navigation in a 
 
 The **AutoNav Tutor** simulation spawns a custom differential drive robot (`box_bot`) into an arena. The system randomly generates target coordinates (visualized as green markers), and a control node attempts to drive the robot to these coordinates. An environment monitor runs in the background to detect collisions via Lidar and reset the simulation automatically, providing an ideal setup for reinforcement learning training.
 
+> 📖 New to ROS 2? See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for diagrams of how the nodes, topics and Gazebo fit together.
+
 ## 🚀 Key Features
 
 * **Custom Robot (URDF/Xacro):**
@@ -120,7 +122,7 @@ ros2 launch tutor gz.launch.py
 **Monitoring:**
 ```bash
 # In another terminal, launch RViz for visualization
-rviz2 -d $(ros2 pkg share tutor)/rviz/config.rviz
+rviz2 -d $(ros2 pkg prefix tutor)/share/tutor/rviz/config.rviz
 ```
 
 ---
@@ -168,7 +170,7 @@ ros2 topic list | grep -i lidar
 ros2 topic hz /scan
 
 # Verify sensor in URDF
-grep -A 20 "lidar" $(ros2 pkg share tutor)/urdf/robot.urdf.xacro
+grep -A 20 "lidar" $(ros2 pkg prefix tutor)/share/tutor/urdf/robot.urdf.xacro
 ```
 
 ---
@@ -181,12 +183,15 @@ Use this to train a reinforcement learning agent to navigate autonomously.
 ros2 launch tutor train.launch.py
 ```
 
-This will start a separate terminal running the training script.
+This only starts Gazebo, the robot and the goal manager, so the robot stays still until the training script is running. Start it in a second terminal:
 
-**Or run training directly:**
 ```bash
-python3 $(ros2 pkg share tutor)/scripts/rl_train.py
+source ~/ros2_ws/install/setup.bash
+source ~/venvs/tutor/bin/activate
+ros2 run tutor rl_train.py
 ```
+
+Use `ros2 launch tutor train.launch.py gui:=false` to run Gazebo headless (faster training).
 
 **What this does:**
 - Launches Gazebo with arena
@@ -234,13 +239,13 @@ Use this workflow to train and then immediately evaluate your trained model.
 
 **Step 1: Train the model**
 ```bash
-python3 $(ros2 pkg share tutor)/scripts/rl_train.py
+ros2 run tutor rl_train.py
 ```
 Wait for training to complete (check terminal for completion message).
 
 **Step 2: Benchmark the trained model**
 ```bash
-python3 $(ros2 pkg share tutor)/scripts/load.py \
+ros2 run tutor load.py \
   --model models/PPO/final_model.zip \
   --stats models/PPO/vec_normalize.pkl \
   --tests 50
@@ -248,7 +253,7 @@ python3 $(ros2 pkg share tutor)/scripts/load.py \
 
 **Or use deployment mode for continuous testing:**
 ```bash
-python3 $(ros2 pkg share tutor)/scripts/load.py \
+ros2 run tutor load.py \
   --model models/PPO/final_model.zip \
   --stats models/PPO/vec_normalize.pkl \
   --deploy --episodes 20
