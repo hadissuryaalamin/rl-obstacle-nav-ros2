@@ -10,7 +10,7 @@ import time
 from geometry_msgs.msg import Twist, Point
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import LaserScan
-from std_srvs.srv import Empty as EmptySrv
+from ros_gz_interfaces.srv import SetEntityPose
 from std_msgs.msg import Empty as EmptyMsg
 
 class TutorBotEnv(gym.Env, Node):
@@ -33,7 +33,7 @@ class TutorBotEnv(gym.Env, Node):
         self.sub_odom = self.create_subscription(Odometry, '/odom', self.odom_callback, 10)
         self.sub_scan = self.create_subscription(LaserScan, '/scan', self.scan_callback, QoSProfile(depth=10, reliability=ReliabilityPolicy.BEST_EFFORT))
         self.sub_goal = self.create_subscription(Point, '/goal_coordinates', self.goal_callback, 10)
-        self.reset_client = self.create_client(EmptySrv, '/reset_simulation')
+        self.reset_client = self.create_client(SetEntityPose, '/world/arena/set_pose')
 
         # --- STATE VARIABLES ---
         self.lidar_data = np.full(self.n_lidar_samples, 3.5)
@@ -119,10 +119,15 @@ class TutorBotEnv(gym.Env, Node):
         super().reset(seed=seed)
         self.steps_in_episode = 0
         
-        # 1. Reset Simulation
+        # 1. Reset Robot (teleport back to the start pose)
         while not self.reset_client.wait_for_service(timeout_sec=1.0):
             self.get_logger().info('waiting for reset service...')
-        self.reset_client.call_async(EmptySrv.Request())
+        self.pub_cmd_vel.publish(Twist())
+        req = SetEntityPose.Request()
+        req.entity.name = 'box_bot'
+        req.pose.position.z = 0.1
+        req.pose.orientation.w = 1.0
+        self.reset_client.call_async(req)
         
         # 2. Request New Goal
         self.goal_received = False # Reset flag

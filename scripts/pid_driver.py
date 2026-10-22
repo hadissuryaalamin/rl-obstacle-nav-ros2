@@ -3,6 +3,7 @@ import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Twist, Point
 from nav_msgs.msg import Odometry
+from std_msgs.msg import Empty
 import math
 
 # Standard Euler conversion function
@@ -28,18 +29,23 @@ class PidDriver(Node):
         self.pub = self.create_publisher(Twist, '/cmd_vel', 10)
         self.sub_odom = self.create_subscription(Odometry, '/odom', self.odom_callback, 10)
         self.sub_goal = self.create_subscription(Point, '/goal_coordinates', self.goal_callback, 10)
+        # Ask GoalManager for a new goal once the current one is reached
+        self.reset_goal_pub = self.create_publisher(Empty, '/reset_goal', 10)
         
         self.x = 0.0
         self.y = 0.0
         self.yaw = 0.0
         self.goal_x = None
         self.goal_y = None
+        self.reached_goal = None  # (x, y) of the goal we already reported as reached
         
         self.get_logger().info("PID Driver Started. Waiting for Goal...")
 
     def goal_callback(self, msg):
         self.goal_x = msg.x
         self.goal_y = msg.y
+        if self.reached_goal is not None and self.reached_goal != (msg.x, msg.y):
+            self.reached_goal = None
 
     def odom_callback(self, msg):
         self.x = msg.pose.pose.position.x
@@ -76,7 +82,10 @@ class PidDriver(Node):
             # Stop if close
             cmd.linear.x = 0.0
             cmd.angular.z = 0.0
-            self.get_logger().info("GOAL REACHED!", once=True)
+            if self.reached_goal is None:
+                self.get_logger().info("GOAL REACHED! Requesting new goal...")
+                self.reached_goal = (self.goal_x, self.goal_y)
+                self.reset_goal_pub.publish(Empty())
             
         self.pub.publish(cmd)
 

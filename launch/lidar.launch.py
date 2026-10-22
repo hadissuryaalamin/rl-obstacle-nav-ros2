@@ -15,11 +15,12 @@ def generate_launch_description():
     robot_description_config = xacro.process_file(xacro_file)
 
     # 2. Launch Gazebo (GUI enabled so you can see the wall)
+    world_path = os.path.join(pkg_share, 'worlds', 'arena.world')
     gazebo = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([os.path.join(
-            get_package_share_directory('gazebo_ros'), 'launch', 'gazebo.launch.py')]),
+            get_package_share_directory('ros_gz_sim'), 'launch', 'gz_sim.launch.py')]),
         # We load your arena world
-        launch_arguments={'world': os.path.join(pkg_share, 'worlds', 'arena.world')}.items()
+        launch_arguments={'gz_args': f'-r {world_path}', 'on_exit_shutdown': 'true'}.items()
     )
 
     # 3. Robot State Publisher (Required for TF/Lidar to work)
@@ -27,17 +28,31 @@ def generate_launch_description():
         package='robot_state_publisher',
         executable='robot_state_publisher',
         output='screen',
-        parameters=[{'robot_description': robot_description_config.toxml()}]
+        parameters=[{'robot_description': robot_description_config.toxml(),
+                     'use_sim_time': True}]
     )
 
     # 4. Spawn the Robot
     # Note: We spawn at z=0.2 to prevent floor clipping
     spawn_entity = Node(
-        package='gazebo_ros',
-        executable='spawn_entity.py',
+        package='ros_gz_sim',
+        executable='create',
         arguments=['-topic', 'robot_description', 
-                   '-entity', 'box_bot', 
+                   '-name', 'box_bot', 
                    '-x', '0.0', '-y', '0.0', '-z', '0.2'],
+        output='screen'
+    )
+
+    # 5. ROS <-> Gazebo Bridge
+    bridge = Node(
+        package='ros_gz_bridge',
+        executable='parameter_bridge',
+        arguments=['/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock',
+                   '/cmd_vel@geometry_msgs/msg/Twist]gz.msgs.Twist',
+                   '/odom@nav_msgs/msg/Odometry[gz.msgs.Odometry',
+                   '/scan@sensor_msgs/msg/LaserScan[gz.msgs.LaserScan',
+                   '/tf@tf2_msgs/msg/TFMessage[gz.msgs.Pose_V',
+                   '/joint_states@sensor_msgs/msg/JointState[gz.msgs.Model'],
         output='screen'
     )
 
@@ -47,5 +62,6 @@ def generate_launch_description():
     return LaunchDescription([
         gazebo,
         node_robot_state_publisher,
-        spawn_entity
+        spawn_entity,
+        bridge
     ])

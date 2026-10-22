@@ -10,12 +10,12 @@ The **AutoNav Tutor** simulation spawns a custom differential drive robot (`box_
 
 * **Custom Robot (URDF/Xacro):**
     * Differential drive kinematics with caster wheel support
-    * Integrated Lidar sensor (Ray sensor) with 360° coverage and 3.5m range
-    * Odometry and TF publishing via `libgazebo_ros_diff_drive`
+    * Integrated Lidar sensor (`gpu_lidar`) with 360° coverage and 3.5m range
+    * Differential drive via `gz-sim-diff-drive-system`, ground-truth odometry and TF via `gz-sim-odometry-publisher-system`
 
 * **Simulation Environment:**
     * **Gazebo World:** A 6x6 meter walled arena (`arena.world`) containing static obstacles (cylinders and boxes) to challenge navigation
-    * **Automatic Resets:** Collision detection using Lidar data (< 0.35m clearance) triggers automatic robot pose and goal resets
+    * **Automatic Resets:** Collision detection using Lidar data (< 0.35m clearance) teleports the robot back to the start (`/world/arena/set_pose`) and moves the goal
 
 * **Modular Node Architecture:**
     * **Goal Manager:** Randomly spawns visual goals and handles goal relocation upon reset
@@ -25,30 +25,39 @@ The **AutoNav Tutor** simulation spawns a custom differential drive robot (`box_
 
 ## 📦 Dependencies
 
-* **ROS 2** (Tested on Humble/Foxy)
-* `gazebo_ros`
-* `xacro`
-* `robot_state_publisher`
+* **Ubuntu 26.04 + ROS 2 Lyrical** with **Gazebo Jetty** (new Gazebo / `gz-sim`, not Gazebo Classic)
+* `ros_gz_sim`, `ros_gz_bridge`, `ros_gz_interfaces`
+* `xacro`, `robot_state_publisher`
 * `geometry_msgs`, `nav_msgs`, `sensor_msgs`
+* Python: `stable-baselines3`, `gymnasium`, `numpy`
+
+Install everything with:
+```bash
+./install_deps.sh
+```
 
 ## 🛠️ Installation
 
-1. **Clone the repository** into your ROS 2 workspace `src` folder:
+1. **Put the package into a ROS 2 workspace** `src` folder:
    ```bash
-   cd ~/ros2_ws/src
+   mkdir -p ~/ros2_ws/src && cd ~/ros2_ws/src
    git clone https://github.com/hadissuryaalamin/rl-obstacle-nav-ros2 tutor
    ```
 
 2. **Build the package:**
    ```bash
+   source /opt/ros/lyrical/setup.bash
    cd ~/ros2_ws
    colcon build --packages-select tutor
    ```
 
-3. **Source the setup script:**
+3. **Source the setup script** (and the venv for the RL scripts):
    ```bash
    source install/setup.bash
+   source ~/venvs/tutor/bin/activate
    ```
+
+> **Wayland:** if the Gazebo window is black or crashes, run `export QT_QPA_PLATFORM=xcb` first.
 
 ## ▶️ Usage
 
